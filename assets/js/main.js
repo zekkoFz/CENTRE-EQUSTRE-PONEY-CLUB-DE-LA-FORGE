@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     stats.forEach(el => { el.querySelector('.counter').textContent = el.dataset.count; });
   }
 
-  /* ---- Contact form (front-end only) ---- */
+  /* ---- Contact form (envoi réel via FormSubmit.co) ---- */
   const form = document.getElementById('contactForm');
   const note = document.getElementById('formNote');
   if (form) {
@@ -75,11 +75,29 @@ document.addEventListener('DOMContentLoaded', () => {
         note.classList.remove('is-success');
         return;
       }
-      // NOTE: pas de backend branché — connecter à un service (Formspree, Netlify Forms, etc.)
-      // ou à une route serveur pour l'envoi réel avant mise en production.
-      note.textContent = 'Merci ! Votre message a bien été préparé — nous revenons vers vous rapidement.';
-      note.classList.add('is-success');
-      form.reset();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      note.textContent = 'Envoi en cours…';
+      note.classList.remove('is-success');
+
+      const action = form.getAttribute('action').replace('https://formsubmit.co/', 'https://formsubmit.co/ajax/');
+      fetch(action, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: new FormData(form)
+      })
+        .then((res) => { if (!res.ok) throw new Error('network'); return res.json(); })
+        .then((data) => {
+          if (data && data.success === 'false') throw new Error(data.message || 'pending');
+          note.textContent = 'Merci ! Votre message a bien été envoyé — nous revenons vers vous rapidement.';
+          note.classList.add('is-success');
+          form.reset();
+        })
+        .catch(() => {
+          note.textContent = "L'envoi a échoué. Vous pouvez nous appeler au 06 64 43 86 01 ou écrire à contact@christophefu.com.";
+          note.classList.remove('is-success');
+        })
+        .finally(() => { submitBtn.disabled = false; });
     });
   }
 
